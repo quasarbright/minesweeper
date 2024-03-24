@@ -202,15 +202,23 @@ export class Minefield {
     return true
   }
 
+  // find the index of a zero, or a minimal mine-count cell if there are none.
+  // TODO rename to hint or something
   public findZero() {
     const indices = Array.from(this.indices())
     shuffleArray(indices)
+    let bestCount = 8
+    let bestIndex = indices[0]
     for(const index of indices) {
-      if (this.getNeighborMineCount(index) === 0) {
+      const count = this.getNeighborMineCount(index)
+      if (count === 0) {
         return index
+      } else if (count < bestCount) {
+        bestCount = count
+        bestIndex = index
       }
     }
-    return indices[0]
+    return bestIndex
   }
 }
 
