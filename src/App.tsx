@@ -1,6 +1,6 @@
 import React, {useState} from 'react';
 import './App.css';
-import {Minefield} from "./model";
+import {Minefield} from "./model/minefield";
 import {MinefieldView} from "./components/minefield";
 
 function App() {

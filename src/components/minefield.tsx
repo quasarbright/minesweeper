@@ -1,4 +1,4 @@
-import {Index, Minefield} from "../model";
+import {Index, Minefield} from "../model/minefield";
 import React, {useEffect, useMemo, useState} from "react";
 
 export interface MinefieldViewProps {
