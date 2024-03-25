@@ -127,12 +127,12 @@ NABC... (set of size N) => 1A,1B,1C,... (deduced mine cells)
 algorithm:
 INVARIANT: Count sets should only contain frontier cells.
 start by clicking the hinted cell, or random.
-create count sets from each non-zero revealed cell.
 handleCertainties:
-  compute certainties the obvious way, and with the 1-2 rule.
-  refine/prune all count sets according to certainties
-  flag/reveal cells according to certainties
   add count sets for newly revealed cells
+  compute certainties the obvious way, and with the 1-2 rule.
+  split certainties into singletons
+  refine/prune all count sets according to singletons
+  flag/reveal cells according to singletons
   repeat until idempotent
 deduce:
   apply subset rule between all count sets. but when you apply it, get rid of the superset, just keep the subset and the difference
@@ -142,8 +142,6 @@ solve:
   deduce
 solve()
 
-
-
 performance:
 deduction should be the bottleneck.
 it looks like we might do O(n^2) operations over and over again where n is the number of useful count sets, but really,
@@ -151,6 +149,32 @@ most of those get skipped. It's actually at most O(8n)=O(n) because subset can o
 And I feel like the number of deduction iterations should also be bounded by like 8, but that might not be true.
 There is definitely some optimization to be done in the application in the subset rule.
 There still is an O(n^2) though technically.
+
+
+refining with a singleton is a special case of the subset rule! can probably combine handleCertainties and deduce a little more
+
+revised algorithm:
+INVARIANT: Count sets should only contain frontier cells.
+reveal hint cell or random one
+add count set for total mine count
+repeat until idempotent:
+  add count sets for newly revealed frontier cells
+  apply subset, 1-2, and certainty-splitting rules until idempotent
+  flag/reveal cells according to singletons
+  remove singletons and empty sets
+
+a count set has:
+- mine count, how many mines are among the cells in the set of indices
+- set of indices, should all correspond to frontier cells
+- origin index, the non-zero revealed cell where this information came from. total count set doesn't have one(?)
+
+origin index is how we'll determine new frontier cells.
+also needed for guess-free generation, since when we move a 50-50 bomb, we'll need to update adjacent count sets.
+if the outermost loop finishes and it's unsolved, that means it would have to guess.
+
+a solver has:
+- mine field
+- count set
 
 Advantage: won't take that long to run I think. definitely better than a sat.
 Advantage: no superposition, makes it more efficient I think.

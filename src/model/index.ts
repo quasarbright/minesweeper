@@ -1,4 +1,4 @@
-import {SetEq} from "./seteq";
+import {SetEqual} from "./setEqual";
 
 export interface Cell {
   revealed: boolean
@@ -140,7 +140,7 @@ export class Minefield {
 
   // recursively reveal neighboring zeros
   private floodRevealZeros(index: Index) {
-    const seen = new SetEq<Index>()
+    const seen = new SetEqual<Index>()
     const stack = [index]
     let that: Minefield = this
     while (stack.length !== 0) {
