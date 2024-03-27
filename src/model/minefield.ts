@@ -40,7 +40,7 @@ export class Minefield {
     }
   }
 
-  private* indices(): Generator<Index> {
+  public* indices(): Generator<Index> {
     for(let row = 0; row < this.height; row++) {
       for(let col = 0; col < this.width; col++) {
         yield({row, col})
@@ -59,7 +59,7 @@ export class Minefield {
     return that
   }
 
-  private clone() {
+  public clone() {
     const that = new Minefield(this.width, this.height, this.numMines)
     that.grid = this.grid.map(row => row.map(cell => ({...cell})))
     return that
@@ -76,8 +76,12 @@ export class Minefield {
     return this.getNeighborCells(index).filter(cell => cell.mine).length
   }
 
-  private getNeighborFlagCount(index: Index) {
+  public getNeighborFlagCount(index: Index) {
     return this.getNeighborCells(index).filter(cell => cell.flagged).length
+  }
+
+  public getNeighborRemainingMineCount(index: Index) {
+    return this.getNeighborMineCount(index) - this.getNeighborFlagCount(index)
   }
 
   public getNeighborCells(index: Index) {
@@ -100,11 +104,15 @@ export class Minefield {
   }
 
   // return copy with flag toggled at index
-  public flag(index: Index) {
+  public flag(index: Index, toggle = true) {
     if (this.getCell(index).revealed) {
       return this
     } else {
-      return this.mergeCell(index, {flagged: !this.getCell(index).flagged})
+      if (toggle) {
+        return this.mergeCell(index, {flagged: !this.getCell(index).flagged})
+      } else {
+        return this.mergeCell(index, {flagged: true})
+      }
     }
   }
 
