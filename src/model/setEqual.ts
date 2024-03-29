@@ -35,6 +35,7 @@ export class SetEqual<T> {
         return false
       }
     }
+    return true
   }
 
   public subtract(that: SetEqual<T>): SetEqual<T> {

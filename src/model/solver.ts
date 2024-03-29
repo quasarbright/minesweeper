@@ -1,12 +1,12 @@
 import {equal, SetEqual} from "./setEqual";
-import {Index, Minefield} from "./minefield";
+import {Index, Minefield, shuffleArray} from "./minefield";
 
 export class CountSetSolver {
   private minefield: Minefield
   private countSets: CountSet[]
-  constructor(minefield: Minefield, countSets: CountSet[]) {
+  constructor(minefield: Minefield, countSets?: CountSet[] | undefined) {
     this.minefield = minefield
-    this.countSets = countSets
+    this.countSets = countSets || []
   }
 
   public getMinefield() {
@@ -14,23 +14,45 @@ export class CountSetSolver {
   }
 
   // solve as much as possible without guessing
-  public solve(): CountSetSolver {
+  public solve(useHint?: boolean): CountSetSolver {
+    // applies a few hand-written rules with a SAT solver as a backup when that's not enough
     let that: CountSetSolver = this
-    that = that.revealHintCell()
+    useHint = useHint ?? this.minefield.isUntouched()
+    if (useHint) {
+      that = that.revealHintCell()
+    }
+
     that = that.updateCountSets()
-    that = repeatUntilIdempotent(that, (that: CountSetSolver) => {
-      if (that.isSolved()) {
-        return that
-      }
-      that = repeatUntilIdempotent(that, (that: CountSetSolver) => that.handleCertainties())
-      if (that.isSolved()) {
-        return that
-      }
-      that = repeatUntilIdempotent(that, (that: CountSetSolver) => that.deduction())
-      return that
-    })
-    // TODO SAT solver as backup
-    return that
+    /*
+    loop:
+      loop:
+        loop handleCertainties
+        loop deduction
+      loop satSolve
+    only sat solve when others aren't enough
+    and go back to others after deducing something from sat
+     */
+    return loop(that, [
+      (that) => loop(that, [
+        (that) => loop(that, [(that) => that.handleCertainties()]),
+        (that) => loop(that, [(that) => that.deduction()]),
+      ]),
+      (that) => that.satSolve(true)
+    ])
+  }
+
+
+  public solveJustSat(useHint?: boolean) {
+    // only uses the SAT solver
+    // useful for seeing when the hand-written rules aren't enough
+    let that: CountSetSolver = this
+    useHint = useHint ?? this.minefield.isUntouched()
+    if (useHint) {
+      that = that.revealHintCell()
+    }
+
+    that = that.updateCountSets()
+    return loop(that, [(that) => that.satSolve(true)])
   }
 
   private revealHintCell(): CountSetSolver {
@@ -44,7 +66,7 @@ export class CountSetSolver {
   }
 
   public clone(): CountSetSolver {
-    return new CountSetSolver(this.minefield.clone(), this.countSets.slice())
+    return new CountSetSolver(this.minefield, this.countSets)
   }
 
   private updateCountSets(): CountSetSolver {
@@ -60,7 +82,7 @@ export class CountSetSolver {
 
   private isInformative(index: Index) {
     const cell = this.minefield.getCell(index)
-    return !cell.flagged && cell.revealed && this.minefield.getNeighborRemainingMineCount(index) > 0
+    return !cell.flagged && cell.revealed && this.minefield.getNeighborUntouchedCount(index) > 0
   }
 
   private setCountSets(countSets: CountSet[]) {
@@ -87,6 +109,10 @@ export class CountSetSolver {
         }
       }
     }
+    return this.withFlagsAndReveals(toFlag, toReveal)
+  }
+
+  private withFlagsAndReveals(toFlag: Index[], toReveal: Index[]) {
     let minefield = this.minefield
     for (const index of toFlag) {
       minefield = minefield.flag(index, false)
@@ -97,7 +123,7 @@ export class CountSetSolver {
     return this.setMinefield(minefield).updateCountSets()
   }
 
-  private isSolved() {
+  isSolved() {
     return this.minefield.isWin()
   }
 
@@ -141,12 +167,146 @@ export class CountSetSolver {
   private applyOneTwoRule(): CountSetSolver {
     return this.applyBinaryRule((a, b) => a.applyOneTwoRule(b))
   }
+
+  // sat solver
+  // each cell is either a mine or not.
+  // if a cell being a mine contradicts observations, it is not a mine, and vice versa.
+  // for each cell, try to find contradictions
+  private satSolve(breakOnFirstFind=true) {
+    const frontier = this.getFrontier()
+    const toFlag: Index[] = []
+    const toReveal: Index[] = []
+    if (this.isContradiction()) {
+      throw new Error('cannot solve contradiction')
+    }
+    for (const index of frontier) {
+      const withMine = this.considerMineAt(index)
+      if (!withMine.isSatisfiable()) {
+        toReveal.push(index)
+        if (breakOnFirstFind) {
+          break
+        }
+      } else {
+        const withoutMine = this.considerNoMineAt(index)
+        if (!withoutMine.isSatisfiable()) {
+          toFlag.push(index)
+          if (breakOnFirstFind) {
+            break
+          }
+        }
+      }
+    }
+    return this.withFlagsAndReveals(toFlag, toReveal)
+  }
+
+  // indices mentioned in count sets, excluding the total one
+  // untouched cells adjacent to revealed ones
+  private getFrontier(): SetEqual<Index> {
+    const indices = new SetEqual<Index>()
+    for (const countSet of this.countSets) {
+      if (countSet.origin) {
+        for (const index of countSet.indices) {
+          indices.add(index)
+        }
+      }
+    }
+    return indices
+  }
+
+  private considerMineAt(index: Index) {
+    // optimization: detect contradictions here so you don't have to scan the whole list after doing this
+    return this.setCountSets(this.countSets.map(countSet => countSet.considerMineAt(index)))
+  }
+
+  private considerNoMineAt(index: Index) {
+    // optimization: detect contradictions here so you don't have to scan the whole list after doing this
+    return this.setCountSets(this.countSets.map(countSet => countSet.considerNoMineAt(index)))
+  }
+
+  private isContradiction() {
+    for(const countSet of this.countSets) {
+      if (countSet.isContradiction()) {
+        return true
+      }
+    }
+    return false
+  }
+
+  private isSatisfiable() {
+    // optimization: split into connected components
+    // optimization: generate possibilities for each count set, rather than all naive possibilities
+    const frontier: Index[] = Array.from(this.getFrontier())
+    return this.isSatisfiableHelp(frontier, 0)
+  }
+
+  // is there an assignment of the given indices that is consistent with observations?
+  // indices and startIndex is used to simulate a linked list for recursion.
+  // everything before startIndex in indices is ignored.
+  private isSatisfiableHelp(indices: Index[], startIndex: number): boolean {
+    if (this.isContradiction()) {
+      return false
+    } else if (startIndex === indices.length) {
+      return true
+    } else {
+      const index = indices[startIndex]
+      return (
+          this.considerNoMineAt(index).isSatisfiableHelp(indices, startIndex + 1)
+          || this.considerMineAt(index).isSatisfiableHelp(indices, startIndex + 1)
+      )
+    }
+  }
+
+  public static generateGuessFree(width: number, height: number, numMines: number): Minefield {
+    let minefield = new Minefield(width, height, numMines)
+    for (let i = 0; i < 100; i++) {
+      const solver = new CountSetSolver(minefield.reset()).solve()
+      minefield = solver.getMinefield()
+      if (minefield.isWin()) {
+        return minefield.reset()
+      } else {
+        // move a frontier mine away, beyond the frontier, into a spot that isn't already a mine
+        // this eliminates 5050s
+        // TODO randomly decide between moving a mine out of the frontier vs moving a mine INTO the frontier
+        // this will avoid a concentration of mines on the outside
+        const frontier = solver.getFrontier()
+        const frontierArr = Array.from(frontier)
+        shuffleArray(frontierArr)
+        // if we don't declare this variable, eslint complains
+        const currentMinefield = minefield
+        const mineIndex = Array.from(frontierArr).find(index => currentMinefield.getCell(index).mine)
+        if (!mineIndex) {
+          // we're screwed, no way to move anything to fix it, start over
+          // could happen like this:
+          // 2F??
+          // 2FFF
+          // 1232
+          // with 1 mine remaining
+          minefield = new Minefield(width, height, numMines)
+          continue
+        }
+        const indicesBeyondFrontier = Array.from(
+            new SetEqual(minefield.indices()).subtract(frontier)
+        ).filter(index => !currentMinefield.getCell(index).mine)
+        if (indicesBeyondFrontier.length > 0) {
+          shuffleArray(indicesBeyondFrontier)
+          const indexBeyondFrontier = indicesBeyondFrontier.pop()
+          minefield = minefield.setCell(mineIndex, {mine: false, flagged: false, revealed: false})
+          minefield = minefield.setCell(indexBeyondFrontier, {mine: true, flagged: false, revealed: false})
+        }
+      }
+    }
+    throw new Error('unable to generate a guess-free minefield')
+  }
 }
 
+// represents the number of mines present among a set of hidden cells
 export class CountSet {
-  // mine count is num neighboring mines - num neighboring flags
+  // mine count is number of mines present among indices' cells
   readonly mineCount: number
+  // indices of cells containing
   readonly indices: SetEqual<Index>
+  // for debugging purposes, the index which created this information
+  // undefined for the total mine count set
   readonly origin: Index | undefined
   constructor(mineCount: number, indices: SetEqual<Index>, origin: Index | undefined) {
     this.mineCount = mineCount
@@ -186,7 +346,7 @@ export class CountSet {
 
   // apply the one-two rule, only if that is a 1-count that overlaps with this on two indices
   public applyOneTwoRule(that: CountSet): CountSet {
-    if (that.mineCount === 1 && that.indices.intersect(this.indices).size() === 2) {
+    if (that.mineCount === 1 && that.indices.intersect(this.indices).size() === 2 && this.indices.size() - this.mineCount === 1) {
       return this.subtract(that)
     } else {
       return this
@@ -196,14 +356,55 @@ export class CountSet {
   public subtract(that: CountSet): CountSet {
     return new CountSet(this.mineCount - that.mineCount, this.indices.subtract(that.indices), this.origin)
   }
+
+  public considerMineAt(index: Index): CountSet {
+    if (!this.indices.has(index)) {
+      return this
+    } else {
+      return this.subtract(new CountSet(1, new SetEqual<Index>([index]), this.origin))
+    }
+  }
+
+  public considerNoMineAt(index: Index): CountSet {
+    if (!this.indices.has(index)) {
+      return this
+    } else {
+      return this.subtract(new CountSet(0, new SetEqual<Index>([index]), this.origin))
+    }
+  }
+
+  public isContradiction(): boolean {
+    return this.mineCount < 0 || this.mineCount > this.indices.size()
+  }
 }
 
-// calls func on value over and over until the result stops changing, according to JSON stringify equality
-function repeatUntilIdempotent<T>(value: T, func: (value: T) => T): T {
-  const next = func(value)
-  if (equal(value, next)) {
-    return value
-  } else {
-    return repeatUntilIdempotent(next, func)
+
+// helper for sequencing solver steps
+// transform that through funcs, stopping at any point if it is solved
+function block(that: CountSetSolver, funcs: ((solver: CountSetSolver) => CountSetSolver)[]) {
+  for (const func of funcs) {
+    if (that.isSolved()) {
+      return that
+    } else {
+      that = func(that)
+    }
+  }
+  return that
+}
+
+// helper for looping solver steps
+// apply funcs over and over, stopping if it's solved or stops changing
+function loop(that: CountSetSolver, funcs: ((solver: CountSetSolver) => CountSetSolver)[]) {
+  while (true) {
+    if (that.isSolved()) {
+      return that
+    } else {
+      const newThat = block(that, funcs)
+      if (equal(newThat, that)) {
+        return that
+      } else {
+        that = newThat
+      }
+    }
   }
 }

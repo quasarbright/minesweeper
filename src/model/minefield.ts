@@ -84,6 +84,10 @@ export class Minefield {
     return this.getNeighborMineCount(index) - this.getNeighborFlagCount(index)
   }
 
+  public getNeighborUntouchedCount(index: Index) {
+    return this.getNeighborCells(index).filter(cell => !cell.revealed && !cell.flagged).length
+  }
+
   public getNeighborCells(index: Index) {
     return this.getNeighborIndices(index).map(index => this.getCell(index))
   }
@@ -201,6 +205,10 @@ export class Minefield {
     return Array.from(this.indices()).filter(index => this.getCell(index).flagged).length
   }
 
+  public numUntouched() {
+    return Array.from(this.indices()).map(index => this.getCell(index)).filter(cell => !cell.revealed && !cell.flagged).length
+  }
+
   public isUntouched() {
     for(const index of this.indices()) {
       if (this.getCell(index).revealed || this.getCell(index).flagged) {
@@ -214,11 +222,14 @@ export class Minefield {
   // TODO rename to hint or something
   public findZero() {
     const indices = Array.from(this.indices())
-    shuffleArray(indices)
+    sortByCenterDistance(this.width, this.height, indices)
     let bestCount = 8
     let bestIndex = indices[0]
     for(const index of indices) {
       const count = this.getNeighborMineCount(index)
+      if (this.getCell(index).mine) {
+        continue
+      }
       if (count === 0) {
         return index
       } else if (count < bestCount) {
@@ -228,11 +239,124 @@ export class Minefield {
     }
     return bestIndex
   }
+
+  public toString() {
+    let s = ''
+    for (let row = 0; row < this.height; row++) {
+      for (let col = 0; col < this.width; col++) {
+        const index = {row, col}
+        const cell = this.getCell(index)
+        const count = this.getNeighborMineCount(index)
+
+        const content = (() => {
+          if (cell.flagged) {
+            if (cell.revealed) {
+              return cell.mine ? 'F' : 'f'
+            } else {
+              return 'F'
+            }
+          } else if (cell.revealed && cell.mine) {
+            return '*'
+          } else if (cell.revealed) {
+            if (count === 0) {
+              return '-'
+            } else {
+              return count.toString(10)
+            }
+          } else {
+            return '?'
+          }
+        })();
+        s += content
+      }
+      s += '\n'
+    }
+    return s
+  }
+
+  // ? means hidden non-mine
+  // * means hidden mine
+  // F means hidden flagged mine
+  // f means hidden flagged non-mine
+  // - or a number means revealed non-mine
+  // meant for testing
+  // NOT the inverse of toString
+  public static fromStrings(strings: string[]) {
+    const height = strings.length
+    const width = strings[0].length
+    let numMines = 0
+    const grid: Cell[][] = strings.map(rowString => Array.from(rowString).map(char => {
+      switch (char) {
+        case "?": return {revealed: false, mine: false, flagged: false}
+        case "*":
+          numMines++
+          return {revealed: false, mine: true, flagged: false}
+        case "F":
+          numMines++
+          return {revealed: false, mine: true, flagged: true}
+        case "f": return {revealed: false, mine: false, flagged: true}
+        case "-":
+        case "0":
+        case "1":
+        case "2":
+        case "3":
+        case "4":
+        case "5":
+        case "6":
+        case "7":
+        case "8":
+        case "9":
+          return {revealed: true, mine: false, flagged: false}
+        default:
+          throw new Error("unknown cell character: " + char)
+      }
+    }))
+    const minefield = new Minefield(width, height, numMines)
+    minefield.grid = grid
+    return minefield
+  }
+
+  // un-flag and hide all cells, preserving mines
+  public reset(): Minefield {
+    const that = this.clone()
+    for (let row = 0; row < that.height; row++) {
+      for (let col = 0; col < that.width; col++) {
+        that.grid[row][col] = {
+          ...that.grid[row][col],
+          flagged: false,
+          revealed: false,
+        }
+      }
+    }
+    return that
+  }
 }
 
-function shuffleArray(array: any[]) {
+export function shuffleArray(array: any[]) {
   for (let i = array.length - 1; i > 0; i--) {
     const j = Math.floor(Math.random() * (i + 1));
     [array[i], array[j]] = [array[j], array[i]];
   }
+}
+
+// swap the first and second halves of the array. like cutting a deck of cards.
+function cutArray(array: any[]) {
+  for(let i = 0; i + Math.floor(array.length / 2) < array.length; i++) {
+    swap(array, i, i + Math.floor(array.length / 2))
+  }
+}
+
+function swap(array: any[], i: number, j: number) {
+  const tmp = array[i]
+  array[i] = array[j]
+  array[j] = tmp
+}
+
+// sort (in-place) the indices according to their taxicab distance from the center
+function sortByCenterDistance(width: number, height: number, array: Index[]) {
+  const center = {row: height/2, col: width/2}
+  function centerDistance(index: Index) {
+    return Math.abs(index.row - center.row) + Math.abs(index.col - center.col)
+  }
+  array.sort((a, b) => centerDistance(a) - centerDistance(b))
 }
