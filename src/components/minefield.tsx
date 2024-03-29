@@ -3,9 +3,10 @@ import React, {useEffect, useMemo, useState} from "react";
 
 export interface MinefieldViewProps {
   initialMinefield: Minefield
+  useRemainingNeighborMineCount?: boolean
 }
 
-export function MinefieldView({initialMinefield}: MinefieldViewProps) {
+export function MinefieldView({initialMinefield, useRemainingNeighborMineCount}: MinefieldViewProps) {
   const [minefield, setMinefield] = useState(initialMinefield)
   const initialZeroIndex = useMemo(() => {
     return initialMinefield.findZero()
@@ -36,6 +37,7 @@ export function MinefieldView({initialMinefield}: MinefieldViewProps) {
                             index={{row, col}}
                             setMinefield={setMinefield}
                             isInitialZero={minefield.isUntouched() && JSON.stringify({row, col}) === JSON.stringify(initialZeroIndex)}
+                            useRemainingNeighborMineCount={useRemainingNeighborMineCount ?? false}
                       />
                     </td>
                 ))}
@@ -54,11 +56,13 @@ export interface CellProps {
   index: Index
   setMinefield: React.Dispatch<React.SetStateAction<Minefield>>
   isInitialZero: boolean
+  useRemainingNeighborMineCount: boolean
 }
 
-export function Cell({minefield, index, setMinefield, isInitialZero}: CellProps) {
+export function Cell({minefield, index, setMinefield, isInitialZero, useRemainingNeighborMineCount}: CellProps) {
   const cell = minefield.getCell(index)
-  const count = minefield.getNeighborMineCount(index)
+  const absoluteCount = minefield.getNeighborMineCount(index)
+  const count = useRemainingNeighborMineCount ? minefield.getNeighborRemainingMineCount(index) : absoluteCount
   const hiddenStyle: React.CSSProperties = {
     backgroundColor: "gray",
     borderStyle: "solid",
@@ -86,7 +90,7 @@ export function Cell({minefield, index, setMinefield, isInitialZero}: CellProps)
       return 'F'
     } else if (cell.revealed && cell.mine) {
       return '*'
-    } else if (cell.revealed && count > 0) {
+    } else if (cell.revealed && absoluteCount > 0) {
       style.color = (() => {
         switch (count) {
           case 1: return 'blue'

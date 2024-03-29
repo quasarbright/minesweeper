@@ -295,7 +295,8 @@ export class CountSetSolver {
         }
       }
     }
-    throw new Error('unable to generate a guess-free minefield')
+    console.error('unable to generate a guess-free minefield')
+    return minefield.reset()
   }
 }
 

@@ -2,6 +2,9 @@
 
 notes for figuring out how to write the solver
 
+Note after implementation: ended up going with count sets. I used those hand-written rules, with a SAT solver as backup.
+optimizations like incrementally updating count sets were unnecessary. even the sat solver didn't need optimization
+since it hardly ever runs, and only runs for a single finding.
 
 ## sat solver
 

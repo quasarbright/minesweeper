@@ -1,5 +1,6 @@
 # todo
-* option to display numMines-numFlags on cells
+* select difficulty 
+* custom difficulty
 * animate solver
 
 # done
@@ -10,3 +11,4 @@
 * guarantee first click isn't bomb or indicate safe cell
 * solver
 * guess free
+* option to display numMines-numFlags on cells
