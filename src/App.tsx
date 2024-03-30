@@ -13,12 +13,12 @@ function App() {
   const [height, setHeight] = useState(16)
   const [numMines, setNumMines] = useState(40)
   const [difficultyOption, setDifficultyOption] = useState('medium')
-  const [initialMinefield, setInitialMinefield] = useState(CountSetSolver.generateGuessFree(16,16, 40))
+  const [initialMinefield, setInitialMinefield] = useState<Minefield>()
   const [useNeighborRemainingMineCount, setUseNeighborRemainingMineCount] = useState(false)
 
   useEffect(() => {
     setInitialMinefield(CountSetSolver.generateGuessFree(width, height, numMines))
-  }, [width, height, numMines]);
+  }, []);
 
   function onDifficultyChange(newDifficulty: string) {
     switch (newDifficulty) {
@@ -75,8 +75,12 @@ function App() {
           />
           <label htmlFor={"use-remaining-mine-count"}>use neighbor remaining mine count</label>
         </div>
-        <MinefieldView key={JSON.stringify(initialMinefield)} initialMinefield={initialMinefield}
-                       useRemainingNeighborMineCount={useNeighborRemainingMineCount}/>
+        {initialMinefield && (
+            <MinefieldView key={JSON.stringify(initialMinefield)}
+                           initialMinefield={initialMinefield}
+                           useRemainingNeighborMineCount={useNeighborRemainingMineCount}
+            />
+        )}
       </div>
   );
 }

@@ -48,6 +48,7 @@ export function MinefieldView({initialMinefield, useRemainingNeighborMineCount}:
   const [solving, setSolving] = useState(false)
   useEffect(() => {
     if (solving) {
+      // replay solution
       const minefields: Minefield[] = []
       new CountSetSolver(minefield, (minefield) => {
         minefields.push(minefield)
@@ -115,7 +116,7 @@ export function Cell({minefield, index, setMinefield, isInitialZero, useRemainin
   const absoluteCount = minefield.getNeighborMineCount(index)
   const count = useRemainingNeighborMineCount ? minefield.getNeighborRemainingMineCount(index) : absoluteCount
   const hiddenStyle: React.CSSProperties = {
-    backgroundColor: "gray",
+    backgroundColor: "#aaaaaa",
     borderStyle: "solid",
     borderColor: "black",
     fontFamily: 'monospace',

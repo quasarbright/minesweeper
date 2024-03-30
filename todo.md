@@ -1,5 +1,7 @@
 # todo
 * custom difficulty
+* retro style
+* cleaner ui
 
 # done
 * click on cleared cell to clear neighbors
