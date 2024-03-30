@@ -1,7 +1,7 @@
 # todo
-* select difficulty 
 * custom difficulty
 * animate solver
+* solve timer
 
 # done
 * click on cleared cell to clear neighbors
@@ -12,3 +12,4 @@
 * solver
 * guess free
 * option to display numMines-numFlags on cells
+* select difficulty 
