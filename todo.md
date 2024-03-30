@@ -1,6 +1,5 @@
 # todo
 * custom difficulty
-* animate solver
 * solve timer
 
 # done
@@ -13,3 +12,4 @@
 * guess free
 * option to display numMines-numFlags on cells
 * select difficulty 
+* animate solver

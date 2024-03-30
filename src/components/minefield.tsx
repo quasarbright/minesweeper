@@ -1,5 +1,6 @@
 import {Index, Minefield} from "../model/minefield";
 import React, {useEffect, useMemo, useState} from "react";
+import {CountSetSolver} from "../model/solver";
 
 export interface MinefieldViewProps {
   initialMinefield: Minefield
@@ -20,10 +21,30 @@ export function MinefieldView({initialMinefield, useRemainingNeighborMineCount}:
 
   useEffect(() => {
     if (isOver) {
+      console.log('here')
       setLost(minefield.isLoss())
       setMinefield(minefield => minefield.revealAll())
     }
   }, [isOver]);
+
+  const [solving, setSolving] = useState(false)
+  useEffect(() => {
+    if (solving) {
+      const minefields: Minefield[] = []
+      new CountSetSolver(minefield, (minefield) => {
+        minefields.push(minefield)
+      }).solve();
+      (async () => {
+        for (const minefield of minefields) {
+          setMinefield(minefield)
+          if (minefield.isWin() || minefield.isLoss()) {
+            break
+          }
+          await new Promise(r => setTimeout(r, 50))
+        }
+      })().then();
+    }
+  }, [solving]);
 
   return (
       <div>
@@ -38,15 +59,23 @@ export function MinefieldView({initialMinefield, useRemainingNeighborMineCount}:
                             setMinefield={setMinefield}
                             isInitialZero={minefield.isUntouched() && JSON.stringify({row, col}) === JSON.stringify(initialZeroIndex)}
                             useRemainingNeighborMineCount={useRemainingNeighborMineCount ?? false}
+                            disabled={solving}
                       />
                     </td>
                 ))}
               </tr>
           ))}
         </table>
-        <h2>
-          {isOver && (lost ? 'You lose' : 'You win!')}
-        </h2>
+        {!isOver && (
+            solving
+                ? <p>Solving</p>
+                : <button onClick={() => {setSolving(true)}}>Solve</button>
+        )}
+        {isOver && (
+            <h2>
+              {lost ? 'You lose' : 'You win!'}
+            </h2>
+        )}
       </div>
   )
 }
@@ -57,9 +86,10 @@ export interface CellProps {
   setMinefield: React.Dispatch<React.SetStateAction<Minefield>>
   isInitialZero: boolean
   useRemainingNeighborMineCount: boolean
+  disabled?: boolean
 }
 
-export function Cell({minefield, index, setMinefield, isInitialZero, useRemainingNeighborMineCount}: CellProps) {
+export function Cell({minefield, index, setMinefield, isInitialZero, useRemainingNeighborMineCount, disabled}: CellProps) {
   const cell = minefield.getCell(index)
   const absoluteCount = minefield.getNeighborMineCount(index)
   const count = useRemainingNeighborMineCount ? minefield.getNeighborRemainingMineCount(index) : absoluteCount
@@ -109,11 +139,15 @@ export function Cell({minefield, index, setMinefield, isInitialZero, useRemainin
     }
   })();
   function flag() {
-    setMinefield(minefield => minefield.flag(index))
+    if (!disabled) {
+      setMinefield(minefield => minefield.flag(index))
+    }
     return false
   }
   function clear() {
-    setMinefield(minefield => minefield.reveal(index))
+    if (!disabled) {
+      setMinefield(minefield => minefield.reveal(index))
+    }
   }
 
   return(

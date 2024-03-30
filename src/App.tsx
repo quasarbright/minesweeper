@@ -1,4 +1,4 @@
-import React, {CSSProperties, useState} from 'react';
+import React, {CSSProperties, useEffect, useState} from 'react';
 import './App.css';
 import {Minefield} from "./model/minefield";
 import {MinefieldView} from "./components/minefield";
@@ -13,8 +13,12 @@ function App() {
   const [height, setHeight] = useState(16)
   const [numMines, setNumMines] = useState(40)
   const [difficultyOption, setDifficultyOption] = useState('medium')
-  const [initialMinefield, setInitialMinefield] = useState(CountSetSolver.generateGuessFree(width, height, numMines))
+  const [initialMinefield, setInitialMinefield] = useState(CountSetSolver.generateGuessFree(16,16, 40))
   const [useNeighborRemainingMineCount, setUseNeighborRemainingMineCount] = useState(false)
+
+  useEffect(() => {
+    setInitialMinefield(CountSetSolver.generateGuessFree(width, height, numMines))
+  }, [width, height, numMines]);
 
   function onDifficultyChange(newDifficulty: string) {
     switch (newDifficulty) {

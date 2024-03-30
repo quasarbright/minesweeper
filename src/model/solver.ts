@@ -2,11 +2,15 @@ import {equal, SetEqual} from "./setEqual";
 import {Index, Minefield, shuffleArray} from "./minefield";
 
 export class CountSetSolver {
-  private minefield: Minefield
-  private countSets: CountSet[]
-  constructor(minefield: Minefield, countSets?: CountSet[] | undefined) {
+  readonly minefield: Minefield
+  readonly countSets: CountSet[]
+  // gets called when the solver reveals or flags a cell
+  readonly onUpdate: (minefield: Minefield) => void
+
+  constructor(minefield: Minefield, onUpdate?: (minefield: Minefield) => void, countSets?: CountSet[] | undefined) {
     this.minefield = minefield
-    this.countSets = countSets || []
+    this.countSets = countSets ?? []
+    this.onUpdate = onUpdate ?? (() => {})
   }
 
   public getMinefield() {
@@ -60,13 +64,11 @@ export class CountSetSolver {
   }
 
   private setMinefield(minefield: Minefield): CountSetSolver {
-    const that = this.clone()
-    that.minefield = minefield
-    return that
+    return new CountSetSolver(minefield, this.onUpdate, this.countSets)
   }
 
   public clone(): CountSetSolver {
-    return new CountSetSolver(this.minefield, this.countSets)
+    return new CountSetSolver(this.minefield, this.onUpdate, this.countSets)
   }
 
   private updateCountSets(): CountSetSolver {
@@ -86,9 +88,7 @@ export class CountSetSolver {
   }
 
   private setCountSets(countSets: CountSet[]) {
-    const that = this.clone()
-    that.countSets = countSets
-    return that
+    return new CountSetSolver(this.minefield, this.onUpdate, countSets)
   }
 
   // detects all certainties and flags/reveals appropriately. also updates frontier.
@@ -116,9 +116,11 @@ export class CountSetSolver {
     let minefield = this.minefield
     for (const index of toFlag) {
       minefield = minefield.flag(index, false)
+      this.onUpdate(minefield)
     }
     for (const index of toReveal) {
       minefield = minefield.reveal(index)
+      this.onUpdate(minefield)
     }
     return this.setMinefield(minefield).updateCountSets()
   }
