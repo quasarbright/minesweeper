@@ -1,5 +1,5 @@
 import {Index, Minefield} from "../model/minefield";
-import React, {useEffect, useMemo, useState} from "react";
+import React, {useCallback, useEffect, useMemo, useState} from "react";
 import {CountSetSolver} from "../model/solver";
 
 export interface MinefieldViewProps {
@@ -19,13 +19,31 @@ export function MinefieldView({initialMinefield, useRemainingNeighborMineCount}:
   const isOver = minefield.isWin() || minefield.isLoss()
   const [lost, setLost] = useState(false)
 
+  const [startTime, setStartTime] = useState<number | undefined>(undefined)
+  useEffect(() => {
+    if (!minefield.isUntouched()) {
+      setStartTime(Date.now())
+    }
+  }, [minefield.isUntouched()]);
+  const [endTime, setEndTime] = useState<number | undefined>(undefined)
+
   useEffect(() => {
     if (isOver) {
-      console.log('here')
       setLost(minefield.isLoss())
       setMinefield(minefield => minefield.revealAll())
+      setEndTime(Date.now())
     }
   }, [isOver]);
+
+  const [elapsedTime, setElapsedTime] = useState<number | undefined>(undefined)
+  useEffect(() => {
+    const intervalId = setInterval(() => {
+      if (startTime !== undefined) {
+        setElapsedTime(Math.floor(((endTime ?? Date.now()) - startTime) / 1000))
+      }
+    }, 100)
+    return () => clearInterval(intervalId)
+  }, [startTime, endTime]);
 
   const [solving, setSolving] = useState(false)
   useEffect(() => {
@@ -49,6 +67,9 @@ export function MinefieldView({initialMinefield, useRemainingNeighborMineCount}:
   return (
       <div>
         <p>Mines remaining: {numMinesRemaining}</p>
+        {elapsedTime !== undefined && (
+            <p>Time Elapsed: {elapsedTime}</p>
+        )}
         <table style={{borderCollapse: 'collapse'}}>
           {Array(minefield.height).fill(null).map((_, row) => (
               <tr style={{padding: 0}}>

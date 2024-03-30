@@ -1,6 +1,5 @@
 # todo
 * custom difficulty
-* solve timer
 
 # done
 * click on cleared cell to clear neighbors
@@ -13,3 +12,4 @@
 * option to display numMines-numFlags on cells
 * select difficulty 
 * animate solver
+* solve timer
