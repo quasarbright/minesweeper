@@ -1,38 +1,245 @@
-.App {
-  text-align: center;
+/* Minesweeper: covered cells are raised slate tiles, uncovered ground sits below them, and the
+   counters are red segment digits, the one nod to the original game. Numbers keep the classic
+   color per count (1 blue, 2 green, 3 red, ...), brightened for a dark board. */
+
+:root {
+  --bg:        #0f1219;
+  --panel:     #171b25;
+  --panel-2:   #212634;
+  --border:    #2b3142;
+  --text:      #e8eaf1;
+  --muted:     #8d93a8;
+  --faint:     #565c70;
+
+  --accent:    #ffc247;   /* signal amber: primary actions, the safe start, the solver */
+  --accent-hi: #ffd57e;
+  --on-accent: #1d1505;
+  --danger:    #ff5a4f;
+  --success:   #5fd08a;
+
+  --tile:      #343b50;   /* covered cell face */
+  --tile-hi:   #434b63;   /* its lit top edge */
+  --tile-lip:  #1c2030;   /* its shadowed bottom edge */
+  --ground:    #141822;   /* uncovered cell */
+  --well:      #0a0c11;   /* the board's tray and the counters' glass */
+  --led:       #ff4b3e;
+  --led-off:   #2c1513;
+
+  --n1: #6aa8ff; --n2: #5fd08a; --n3: #ff6b6b; --n4: #b48cff;
+  --n5: #ff9d4d; --n6: #3fd6d0; --n7: #e8eaf1; --n8: #8d93a8;
+
+  --font-display: "Chakra Petch", var(--font-ui);
 }
 
-.App-logo {
-  height: 40vmin;
-  pointer-events: none;
+html { background: var(--bg); }
+body { min-height: 100vh; min-height: 100dvh; display: flex; flex-direction: column; }
+#root { flex: 1; }
+button { font: inherit; color: inherit; -webkit-tap-highlight-color: transparent; }
+mike-footer { margin-top: auto; }
+
+.ms-page {
+  max-width: 1240px; margin: 0 auto; padding: 22px 16px 8px;
+  display: flex; flex-direction: column; align-items: center; gap: 14px;
 }
 
-@media (prefers-reduced-motion: no-preference) {
-  .App-logo {
-    animation: App-logo-spin infinite 20s linear;
-  }
+/* ---------- header ---------- */
+.ms-head { text-align: center; }
+.ms-title {
+  margin: 0; font: 700 2.4rem/1 var(--font-display); letter-spacing: .02em; color: var(--text);
+}
+.ms-sub { margin: 6px 0 0; color: var(--muted); font-size: .92rem; }
+.ms-sub a { white-space: nowrap; }
+
+/* ---------- difficulty ---------- */
+.ms-difficulty {
+  display: flex; gap: 4px; padding: 4px; border-radius: 14px; background: var(--panel);
+  box-shadow: inset 0 0 0 1px var(--border);
+}
+.ms-seg {
+  display: flex; flex-direction: column; align-items: center; gap: 1px;
+  min-width: 92px; padding: 7px 12px 6px; border: 0; border-radius: 10px; background: none;
+  cursor: pointer; color: var(--muted); transition: background .15s, color .15s;
+}
+.ms-seg:hover { color: var(--text); background: var(--panel-2); }
+.ms-seg-name { font: 600 1rem/1.1 var(--font-display); }
+.ms-seg-size { font-size: .72rem; font-variant-numeric: tabular-nums; color: var(--faint); }
+.ms-seg.is-on { background: var(--accent); color: var(--on-accent); }
+.ms-seg.is-on .ms-seg-size { color: rgba(29, 21, 5, .7); }
+
+/* ---------- game column ---------- */
+.ms-game { width: 100%; display: flex; flex-direction: column; align-items: center; gap: 14px; }
+
+/* the scoreboard: two counters in one pill, centered on the page */
+.ms-score {
+  display: flex; align-items: stretch; gap: 0; padding: 8px 6px;
+  background: var(--panel); border-radius: 16px;
+  box-shadow: inset 0 0 0 1px var(--border), 0 6px 18px rgba(0,0,0,.35);
+  transition: box-shadow .3s;
+}
+.ms-stat { display: flex; flex-direction: column; align-items: center; gap: 3px; padding: 0 16px; }
+.ms-stat + .ms-stat { border-left: 1px solid var(--border); }
+.ms-stat-label { font-size: .7rem; font-weight: 600; letter-spacing: .06em; color: var(--faint); }
+.ms-led {
+  display: inline-flex; gap: 3px; padding: 6px 8px; border-radius: 8px; background: var(--well);
+  box-shadow: inset 0 2px 6px rgba(0,0,0,.7);
+}
+.ms-led svg { width: 17px; height: 29px; transform: skewX(-6deg); }
+.ms-led .on { fill: var(--led); filter: drop-shadow(0 0 3px rgba(255, 75, 62, .55)); }
+.ms-led .off { fill: var(--led-off); }
+.is-won .ms-score { box-shadow: inset 0 0 0 2px var(--success), 0 6px 18px rgba(0,0,0,.35); }
+.is-lost .ms-score { box-shadow: inset 0 0 0 2px var(--danger), 0 6px 18px rgba(0,0,0,.35); }
+
+/* ---------- board ---------- */
+.ms-board-wrap { width: 100%; overflow-x: auto; display: flex; padding-bottom: 4px; }
+.ms-board {
+  margin: 0 auto; display: grid; gap: var(--gap); padding: 8px; border-radius: 12px;
+  background: var(--well); box-shadow: inset 0 0 0 1px #1d2130, 0 10px 30px rgba(0,0,0,.4);
+  -webkit-user-select: none; user-select: none; -webkit-touch-callout: none;
 }
 
-.App-header {
-  background-color: #282c34;
-  min-height: 100vh;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  font-size: calc(10px + 2vmin);
-  color: white;
+.ms-cell {
+  width: var(--cell); height: var(--cell); padding: 0; border: 0; margin: 0;
+  display: grid; place-items: center; cursor: pointer;
+  border-radius: calc(var(--cell) * .16);
+  font: 700 calc(var(--cell) * .6)/1 var(--font-display); font-variant-numeric: tabular-nums;
+  -webkit-tap-highlight-color: transparent; -webkit-touch-callout: none;
+}
+.ms-cell:focus { outline: none; }
+
+.ms-cell.is-hidden {
+  background: linear-gradient(var(--tile-hi), var(--tile) 38%);
+  box-shadow: inset 0 -3px 0 var(--tile-lip), inset 0 1px 0 rgba(255,255,255,.08);
+  transition: filter .1s, transform .08s;
+}
+.ms-cell.is-hidden:hover { filter: brightness(1.14); }
+.ms-cell.is-hidden:active { transform: translateY(1px); box-shadow: inset 0 -1px 0 var(--tile-lip); }
+
+.ms-cell.is-open {
+  background: var(--ground); box-shadow: inset 0 1px 2px rgba(0,0,0,.6);
+  cursor: default; animation: ms-open .22s ease-out;
+}
+@keyframes ms-open { from { transform: scale(.82); background: #2a3044; } }
+.is-solving .ms-cell.is-open { animation: ms-solve .5s ease-out; }
+@keyframes ms-solve { from { transform: scale(.8); background: var(--accent); } 40% { background: rgba(255, 194, 71, .35); } }
+
+.ms-cell.n1 { color: var(--n1); } .ms-cell.n2 { color: var(--n2); }
+.ms-cell.n3 { color: var(--n3); } .ms-cell.n4 { color: var(--n4); }
+.ms-cell.n5 { color: var(--n5); } .ms-cell.n6 { color: var(--n6); }
+.ms-cell.n7 { color: var(--n7); } .ms-cell.n8 { color: var(--n8); }
+
+/* the suggested first cell */
+.ms-cell.is-start {
+  background: linear-gradient(#ffd57e, var(--accent) 40%);
+  box-shadow: inset 0 -3px 0 #a87412;
+  animation: ms-start 1.6s ease-in-out infinite;
+}
+@keyframes ms-start { 50% { filter: brightness(1.15); transform: scale(1.06); } }
+
+/* icons */
+.ms-icon { width: 62%; height: 62%; fill: none; stroke: currentColor; stroke-width: 2.2; stroke-linecap: round; stroke-linejoin: round; }
+.ms-flag-pole, .ms-flag-base { stroke: #d9dce6; }
+.ms-flag-cloth { fill: var(--danger); stroke: var(--danger); stroke-width: 1.4; }
+.ms-cell.is-flagged.is-hidden { animation: ms-plant .2s cubic-bezier(.2, 1.6, .4, 1); }
+@keyframes ms-plant { from { transform: scale(.7); } }
+.ms-mine { width: 66%; height: 66%; }
+.ms-mine circle { fill: #c9cdd8; stroke: none; }
+.ms-mine-spikes { stroke: #c9cdd8; stroke-width: 2.4; }
+.ms-mine .ms-mine-shine { fill: #fff; }
+
+/* end of game */
+.ms-cell.is-late { opacity: .55; animation: none; }
+.ms-cell.is-mine.is-late { opacity: .8; }
+.ms-cell.is-boom { background: var(--danger); opacity: 1; animation: ms-boom .45s ease-out; }
+.ms-cell.is-boom .ms-mine circle { fill: #1a0d0c; }
+.ms-cell.is-boom .ms-mine-spikes { stroke: #1a0d0c; }
+.ms-cell.is-boom .ms-mine-shine { fill: #ff9b93; }
+@keyframes ms-boom { from { transform: scale(1.6); filter: brightness(1.8); } }
+.ms-cell.is-flagged.is-right { background: rgba(95, 208, 138, .18); opacity: 1; }
+.ms-cell.is-flagged.is-wrong { background: var(--ground); position: relative; opacity: 1; }
+.ms-cell.is-flagged.is-wrong .ms-flag { opacity: .45; }
+.ms-cell.is-flagged.is-wrong::after {
+  content: ""; position: absolute; inset: 22%;
+  background: linear-gradient(45deg, transparent 44%, var(--danger) 44% 56%, transparent 56%),
+              linear-gradient(-45deg, transparent 44%, var(--danger) 44% 56%, transparent 56%);
+}
+.is-lost .ms-board { animation: ms-shake .4s ease-out; }
+@keyframes ms-shake { 20% { transform: translateX(-6px); } 45% { transform: translateX(5px); } 70% { transform: translateX(-3px); } }
+.is-won .ms-board { animation: ms-glow 1.2s ease-out; }
+@keyframes ms-glow { 30% { box-shadow: inset 0 0 0 1px #1d2130, 0 0 0 4px rgba(95, 208, 138, .55), 0 10px 40px rgba(95, 208, 138, .3); } }
+
+/* ---------- controls ---------- */
+.ms-controls, .ms-result {
+  display: flex; flex-wrap: wrap; align-items: center; justify-content: center; gap: 10px; min-height: 52px;
+}
+.ms-btn, .ms-mode-btn {
+  display: inline-flex; align-items: center; justify-content: center; gap: 6px;
+  height: 44px; padding: 0 18px; border: 0; border-radius: 12px; cursor: pointer;
+  font: 600 1rem var(--font-display); color: var(--text); background: var(--panel-2);
+  box-shadow: inset 0 0 0 1px var(--border), 0 3px 0 #0a0c11;
+  transition: background .15s, transform .08s, box-shadow .08s, opacity .15s;
+}
+.ms-btn:hover:not(:disabled) { background: #2b3142; }
+.ms-btn:active:not(:disabled) { transform: translateY(2px); box-shadow: inset 0 0 0 1px var(--border), 0 1px 0 #0a0c11; }
+.ms-btn:disabled { opacity: .45; cursor: default; }
+.ms-btn.is-primary { background: var(--accent); color: var(--on-accent); box-shadow: 0 3px 0 #a87412; }
+.ms-btn.is-primary:hover { background: var(--accent-hi); }
+.ms-btn:focus-visible, .ms-mode-btn:focus-visible, .ms-seg:focus-visible { outline: 2px solid var(--accent-hi); outline-offset: 2px; }
+
+.ms-mode { display: flex; padding: 3px; gap: 3px; border-radius: 14px; background: var(--well); box-shadow: inset 0 0 0 1px var(--border); }
+.ms-mode-btn { height: 40px; padding: 0 14px; background: none; box-shadow: none; color: var(--muted); border-radius: 11px; }
+.ms-mode-btn .ms-icon { width: 18px; height: 18px; }
+.ms-mode-btn .ms-icon rect { fill: var(--tile); stroke: var(--tile-hi); }
+.ms-mode-btn:hover { color: var(--text); }
+.ms-mode-btn.is-on { background: var(--panel-2); color: var(--text); box-shadow: inset 0 0 0 1px var(--border); }
+.ms-mode-btn.is-on.is-flag { box-shadow: inset 0 0 0 2px var(--danger); }
+
+.ms-solve:disabled { opacity: 1; color: var(--accent); }
+
+.ms-result { animation: ms-pop .4s cubic-bezier(.2, 1.5, .4, 1); }
+@keyframes ms-pop { from { transform: scale(.7); opacity: 0; } }
+.ms-result-text { display: flex; align-items: baseline; gap: 10px; }
+.ms-result-text strong { font: 700 1.7rem/1 var(--font-display); }
+.ms-result-text span { font: 600 1.1rem var(--font-display); color: var(--muted); font-variant-numeric: tabular-nums; }
+.is-won .ms-result-text strong { color: var(--success); }
+.is-lost .ms-result-text strong { color: var(--danger); }
+
+.ms-hint { margin: -4px 0 0; max-width: 72ch; text-align: center; font-size: .82rem; color: var(--faint); }
+
+/* ---------- option switch ---------- */
+.ms-switch { display: inline-flex; align-items: center; gap: 10px; cursor: pointer; color: var(--muted); font-size: .9rem; }
+.ms-switch input { position: absolute; opacity: 0; width: 1px; height: 1px; }
+.ms-switch-track {
+  flex: none; width: 36px; height: 20px; border-radius: 10px; background: var(--panel-2);
+  box-shadow: inset 0 0 0 1px var(--border); position: relative; transition: background .15s;
+}
+.ms-switch-thumb {
+  position: absolute; top: 3px; left: 3px; width: 14px; height: 14px; border-radius: 50%;
+  background: var(--muted); transition: transform .15s, background .15s;
+}
+.ms-switch input:checked + .ms-switch-track { background: var(--accent); }
+.ms-switch input:checked + .ms-switch-track .ms-switch-thumb { transform: translateX(16px); background: var(--on-accent); }
+.ms-switch input:focus-visible + .ms-switch-track { outline: 2px solid var(--accent-hi); outline-offset: 2px; }
+.ms-switch:hover { color: var(--text); }
+
+/* ---------- phones ---------- */
+@media (max-width: 600px) {
+  .ms-page { padding: 14px 12px 4px; gap: 10px; }
+  .ms-title { font-size: 1.9rem; }
+  .ms-sub { font-size: .84rem; }
+  .ms-seg { min-width: 0; flex: 1; padding: 6px 4px 5px; }
+  .ms-difficulty { width: 100%; }
+  .ms-seg-size { font-size: .66rem; }
+  .ms-game { gap: 10px; }
+  .ms-led svg { width: 14px; height: 24px; }
+  .ms-stat { padding: 0 12px; }
+  .ms-board { padding: 6px; }
+  .ms-controls { gap: 6px; flex-wrap: nowrap; }
+  .ms-btn { padding: 0 12px; font-size: .95rem; }
+  .ms-mode-btn { padding: 0 10px; font-size: .95rem; }
+  .ms-mode-btn .ms-icon { display: none; }
+  .ms-hint { font-size: .78rem; }
 }
 
-.App-link {
-  color: #61dafb;
-}
-
-@keyframes App-logo-spin {
-  from {
-    transform: rotate(0deg);
-  }
-  to {
-    transform: rotate(360deg);
-  }
+@media (prefers-reduced-motion: reduce) {
+  .ms-cell, .ms-board, .ms-result, .ms-cell.is-start { animation: none !important; }
 }

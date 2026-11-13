@@ -1,87 +1,88 @@
-import React, {CSSProperties, useEffect, useState} from 'react';
+import React, {useEffect, useState} from 'react';
 import './App.css';
 import {Minefield} from "./model/minefield";
 import {MinefieldView} from "./components/minefield";
 import {CountSetSolver} from "./model/solver";
 
-const rightMarginStyle: CSSProperties = {
-  marginRight: 10
+interface Difficulty {
+  name: string
+  width: number
+  height: number
+  numMines: number
+}
+
+const difficulties: Record<string, Difficulty> = {
+  easy: {name: 'Easy', width: 9, height: 9, numMines: 10},
+  medium: {name: 'Medium', width: 16, height: 16, numMines: 40},
+  hard: {name: 'Hard', width: 30, height: 16, numMines: 99},
+  evil: {name: 'Evil', width: 30, height: 20, numMines: 130},
 }
 
 function App() {
-  const [width, setWidth] = useState(16)
-  const [height, setHeight] = useState(16)
-  const [numMines, setNumMines] = useState(40)
   const [difficultyOption, setDifficultyOption] = useState('medium')
   const [initialMinefield, setInitialMinefield] = useState<Minefield>()
   const [useNeighborRemainingMineCount, setUseNeighborRemainingMineCount] = useState(false)
 
-  useEffect(() => {
+  function newGame(difficulty: string) {
+    const {width, height, numMines} = difficulties[difficulty]
     setInitialMinefield(CountSetSolver.generateGuessFree(width, height, numMines))
+  }
+
+  useEffect(() => {
+    newGame('medium')
   }, []);
 
   function onDifficultyChange(newDifficulty: string) {
-    switch (newDifficulty) {
-      case 'easy':
-        setDifficultyOption('easy')
-        setWidth(9)
-        setHeight(9)
-        setNumMines(10)
-        break
-      case 'medium':
-        setDifficultyOption('medium')
-        setWidth(16)
-        setHeight(16)
-        setNumMines(40)
-        break
-      case 'hard':
-        setDifficultyOption('hard')
-        setWidth(30)
-        setHeight(16)
-        setNumMines(99)
-        break
-      case 'evil':
-        setDifficultyOption('evil')
-        setWidth(30)
-        setHeight(20)
-        setNumMines(130)
-        break
-    }
+    setDifficultyOption(newDifficulty)
+    newGame(newDifficulty)
   }
 
   return (
-      <div style={{padding: 10}}>
-        <label style={rightMarginStyle} htmlFor={'difficulty'}>Difficulty</label>
-        <select style={rightMarginStyle} name={'difficulty'}
-                defaultValue={'medium'}
-                onChange={(event) => onDifficultyChange(event.target.value)}
-        >
-          <option value={'easy'}>Easy (9x9, 10 mines)</option>
-          <option value={'medium'}>Medium (16x16, 40 mines)</option>
-          <option value={'hard'}>Hard (30x16, 99 mines)</option>
-          <option value={'evil'}>Evil (30x20, 130 mines)</option>
-        </select>
-        <button
-            onClick={() => setInitialMinefield(CountSetSolver.generateGuessFree(width, height, numMines))}
-        >
-          New Game
-        </button>
-        <br/>
-        <div style={{display: 'flex'}}>
-          <input type={'checkbox'}
-                 name={"use-remaining-mine-count"}
-                 value={useNeighborRemainingMineCount ? 'true' : 'false'}
-                 onChange={ev => setUseNeighborRemainingMineCount(b => !b)}
-          />
-          <label htmlFor={"use-remaining-mine-count"}>use neighbor remaining mine count</label>
+      <main className="ms-page">
+        <header className="ms-head">
+          <h1 className="ms-title">Minesweeper</h1>
+          <p className="ms-sub">
+            Every board can be cleared without guessing.{' '}
+            <a href="https://quasarbright.github.io/blog/2024/04/guess-free-minesweeper.html"
+               title="blog post on how the boards are generated and how the solver works">
+              How it works
+            </a>
+          </p>
+        </header>
+
+        <div className="ms-difficulty" role="radiogroup" aria-label="Difficulty">
+          {Object.entries(difficulties).map(([key, d]) => (
+              <button key={key}
+                      role="radio"
+                      aria-checked={difficultyOption === key}
+                      className={'ms-seg' + (difficultyOption === key ? ' is-on' : '')}
+                      title={`New ${d.width}×${d.height} board with ${d.numMines} mines`}
+                      onClick={() => onDifficultyChange(key)}
+              >
+                <span className="ms-seg-name">{d.name}</span>
+                <span className="ms-seg-size">{d.width}×{d.height} · {d.numMines}</span>
+              </button>
+          ))}
         </div>
+
         {initialMinefield && (
             <MinefieldView key={JSON.stringify(initialMinefield)}
                            initialMinefield={initialMinefield}
                            useRemainingNeighborMineCount={useNeighborRemainingMineCount}
+                           onNewGame={() => newGame(difficultyOption)}
             />
         )}
-      </div>
+
+        <label className="ms-switch"
+               title="Each number shows how many of its neighboring mines you haven't flagged yet, so it counts down as you flag">
+          <input type="checkbox"
+                 checked={useNeighborRemainingMineCount}
+                 onChange={() => setUseNeighborRemainingMineCount(b => !b)}
+          />
+          <span className="ms-switch-track" aria-hidden="true"><span className="ms-switch-thumb"/></span>
+          Count numbers down as you flag
+        </label>
+      </main>
   );
 }
 
