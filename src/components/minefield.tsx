@@ -5,12 +5,11 @@ import {CountSetSolver} from "../model/solver";
 export interface MinefieldViewProps {
   initialMinefield: Minefield
   useRemainingNeighborMineCount?: boolean
+  onUseRemainingChange: (useRemaining: boolean) => void
   onNewGame: () => void
 }
 
-type Mode = 'reveal' | 'flag'
-
-export function MinefieldView({initialMinefield, useRemainingNeighborMineCount, onNewGame}: MinefieldViewProps) {
+export function MinefieldView({initialMinefield, useRemainingNeighborMineCount, onUseRemainingChange, onNewGame}: MinefieldViewProps) {
   const [minefield, setMinefield] = useState(initialMinefield)
   const initialZeroIndex = useMemo(() => {
     return initialMinefield.findZero()
@@ -72,17 +71,6 @@ export function MinefieldView({initialMinefield, useRemainingNeighborMineCount, 
     }
   }, [solving]);
 
-  const [mode, setMode] = useState<Mode>('reveal')
-  useEffect(() => {
-    function onKey(event: KeyboardEvent) {
-      if (event.key === 'f' && !event.metaKey && !event.ctrlKey) {
-        setMode(m => m === 'flag' ? 'reveal' : 'flag')
-      }
-    }
-    window.addEventListener('keydown', onKey)
-    return () => window.removeEventListener('keydown', onKey)
-  }, []);
-
   // phones are tall: show a wide board on its side so the cells stay big enough to tap.
   // Only the drawing is transposed; the game sees the same rows and columns.
   const boardRef = useRef<HTMLDivElement>(null)
@@ -130,7 +118,6 @@ export function MinefieldView({initialMinefield, useRemainingNeighborMineCount, 
                             isInitialZero={minefield.isUntouched() && JSON.stringify(index) === JSON.stringify(initialZeroIndex)}
                             useRemainingNeighborMineCount={useRemainingNeighborMineCount ?? false}
                             disabled={solving || isOver}
-                            mode={mode}
                       />
                   )
                 })
@@ -150,18 +137,18 @@ export function MinefieldView({initialMinefield, useRemainingNeighborMineCount, 
             </div>
         ) : (
             <div className="ms-controls">
-              <div className="ms-mode" role="radiogroup" aria-label="What a tap does">
-                <button role="radio" aria-checked={mode === 'reveal'}
-                        className={'ms-mode-btn' + (mode === 'reveal' ? ' is-on' : '')}
-                        onClick={() => setMode('reveal')}
-                        title="Tap a cell to uncover it (F switches)">
-                  <TileIcon/> Reveal
+              <div className="ms-count" role="radiogroup" aria-label="What the numbers show">
+                <button role="radio" aria-checked={!useRemainingNeighborMineCount}
+                        className={'ms-count-btn' + (!useRemainingNeighborMineCount ? ' is-on' : '')}
+                        onClick={() => onUseRemainingChange(false)}
+                        title="Numbers show how many mines touch the cell, flagged or not">
+                  <MiniPair n={1}/>
                 </button>
-                <button role="radio" aria-checked={mode === 'flag'}
-                        className={'ms-mode-btn' + (mode === 'flag' ? ' is-on is-flag' : '')}
-                        onClick={() => setMode('flag')}
-                        title="Tap a cell to flag it as a mine (F switches). Right-click or long-press also flags.">
-                  <FlagIcon/> Flag
+                <button role="radio" aria-checked={!!useRemainingNeighborMineCount}
+                        className={'ms-count-btn' + (useRemainingNeighborMineCount ? ' is-on' : '')}
+                        onClick={() => onUseRemainingChange(true)}
+                        title="Numbers count down as you flag: each shows how many of its mines aren't flagged yet">
+                  <MiniPair n={0}/>
                 </button>
               </div>
               <button className="ms-btn ms-solve" disabled={solving}
@@ -206,9 +193,9 @@ function useBoardLayout(ref: React.RefObject<HTMLDivElement>, width: number, hei
       const rows = transposed ? width : height
       const availW = el.clientWidth
       // on a landscape screen the whole game fits without scrolling: the board gets what's left
-      // between its top edge and the controls, hint, option and footer below it (~220px)
+      // between its top edge and the controls, hint and footer below it (~185px)
       const top = el.getBoundingClientRect().top + window.scrollY
-      const availH = Math.max(240, vh - top - 220)
+      const availH = Math.max(240, vh - top - 185)
       const pad = vw <= 600 ? 12 : 16
       const fit = (gap: number) => {
         const fitW = (availW - pad - (cols - 1) * gap) / cols
@@ -238,12 +225,11 @@ export interface CellProps {
   isInitialZero: boolean
   useRemainingNeighborMineCount: boolean
   disabled?: boolean
-  mode: Mode
 }
 
 const LONG_PRESS_MS = 380
 
-export function Cell({minefield, endState, index, setMinefield, isInitialZero, useRemainingNeighborMineCount, disabled, mode}: CellProps) {
+export function Cell({minefield, endState, index, setMinefield, isInitialZero, useRemainingNeighborMineCount, disabled}: CellProps) {
   const cell = minefield.getCell(index)
   const absoluteCount = minefield.getNeighborMineCount(index)
   const count = useRemainingNeighborMineCount ? minefield.getNeighborRemainingMineCount(index) : absoluteCount
@@ -312,8 +298,7 @@ export function Cell({minefield, endState, index, setMinefield, isInitialZero, u
               swallowClick.current = false
               return
             }
-            if (mode === 'flag' && !cell.revealed) flag()
-            else clear()
+            clear()
           }}
           onContextMenu={(event) => {
             event.preventDefault()
@@ -414,10 +399,13 @@ function MineIcon() {
   )
 }
 
-function TileIcon() {
+// a flagged cell next to a 1, drawn with the board's own cell styles: with one flag beside it,
+// the 1 reads 1 when numbers show total mines and 0 when they count down
+function MiniPair({n}: {n: number}) {
   return (
-      <svg className="ms-icon" viewBox="0 0 24 24" aria-hidden="true">
-        <rect x="4" y="4" width="16" height="16" rx="3"/>
-      </svg>
+      <span className="ms-mini" aria-hidden="true">
+        <span className="ms-cell is-hidden is-flagged"><FlagIcon/></span>
+        <span className={`ms-cell is-open n${n}`}>{n}</span>
+      </span>
   )
 }

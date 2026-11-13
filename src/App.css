@@ -171,7 +171,7 @@ mike-footer { margin-top: auto; }
 .ms-controls, .ms-result {
   display: flex; flex-wrap: wrap; align-items: center; justify-content: center; gap: 10px; min-height: 52px;
 }
-.ms-btn, .ms-mode-btn {
+.ms-btn {
   display: inline-flex; align-items: center; justify-content: center; gap: 6px;
   height: 44px; padding: 0 18px; border: 0; border-radius: 12px; cursor: pointer;
   font: 600 1rem var(--font-display); color: var(--text); background: var(--panel-2);
@@ -183,15 +183,19 @@ mike-footer { margin-top: auto; }
 .ms-btn:disabled { opacity: .45; cursor: default; }
 .ms-btn.is-primary { background: var(--accent); color: var(--on-accent); box-shadow: 0 3px 0 #a87412; }
 .ms-btn.is-primary:hover { background: var(--accent-hi); }
-.ms-btn:focus-visible, .ms-mode-btn:focus-visible, .ms-seg:focus-visible { outline: 2px solid var(--accent-hi); outline-offset: 2px; }
+.ms-btn:focus-visible, .ms-count-btn:focus-visible, .ms-seg:focus-visible { outline: 2px solid var(--accent-hi); outline-offset: 2px; }
 
-.ms-mode { display: flex; padding: 3px; gap: 3px; border-radius: 14px; background: var(--well); box-shadow: inset 0 0 0 1px var(--border); }
-.ms-mode-btn { height: 40px; padding: 0 14px; background: none; box-shadow: none; color: var(--muted); border-radius: 11px; }
-.ms-mode-btn .ms-icon { width: 18px; height: 18px; }
-.ms-mode-btn .ms-icon rect { fill: var(--tile); stroke: var(--tile-hi); }
-.ms-mode-btn:hover { color: var(--text); }
-.ms-mode-btn.is-on { background: var(--panel-2); color: var(--text); box-shadow: inset 0 0 0 1px var(--border); }
-.ms-mode-btn.is-on.is-flag { box-shadow: inset 0 0 0 2px var(--danger); }
+/* what the numbers show: a flag beside a 1 (total mines) or beside a 0 (counting down) */
+.ms-count { display: flex; padding: 3px; gap: 3px; border-radius: 14px; background: var(--well); box-shadow: inset 0 0 0 1px var(--border); }
+.ms-count-btn {
+  display: grid; place-items: center; height: 40px; padding: 0 9px; border: 0; border-radius: 11px;
+  background: none; cursor: pointer; opacity: .45; transition: background .15s, opacity .15s;
+}
+.ms-count-btn:hover { opacity: .8; }
+.ms-count-btn.is-on { opacity: 1; background: var(--panel-2); box-shadow: inset 0 0 0 1px var(--border); }
+.ms-mini { --cell: 24px; display: flex; gap: 2px; pointer-events: none; }
+.ms-mini .ms-cell { animation: none; }
+.ms-mini .n0 { color: var(--muted); }
 
 .ms-solve:disabled { opacity: 1; color: var(--accent); }
 
@@ -204,22 +208,6 @@ mike-footer { margin-top: auto; }
 .is-lost .ms-result-text strong { color: var(--danger); }
 
 .ms-hint { margin: -4px 0 0; max-width: 72ch; text-align: center; font-size: .82rem; color: var(--faint); }
-
-/* ---------- option switch ---------- */
-.ms-switch { display: inline-flex; align-items: center; gap: 10px; cursor: pointer; color: var(--muted); font-size: .9rem; }
-.ms-switch input { position: absolute; opacity: 0; width: 1px; height: 1px; }
-.ms-switch-track {
-  flex: none; width: 36px; height: 20px; border-radius: 10px; background: var(--panel-2);
-  box-shadow: inset 0 0 0 1px var(--border); position: relative; transition: background .15s;
-}
-.ms-switch-thumb {
-  position: absolute; top: 3px; left: 3px; width: 14px; height: 14px; border-radius: 50%;
-  background: var(--muted); transition: transform .15s, background .15s;
-}
-.ms-switch input:checked + .ms-switch-track { background: var(--accent); }
-.ms-switch input:checked + .ms-switch-track .ms-switch-thumb { transform: translateX(16px); background: var(--on-accent); }
-.ms-switch input:focus-visible + .ms-switch-track { outline: 2px solid var(--accent-hi); outline-offset: 2px; }
-.ms-switch:hover { color: var(--text); }
 
 /* ---------- phones ---------- */
 @media (max-width: 600px) {
@@ -235,8 +223,6 @@ mike-footer { margin-top: auto; }
   .ms-board { padding: 6px; }
   .ms-controls { gap: 6px; flex-wrap: nowrap; }
   .ms-btn { padding: 0 12px; font-size: .95rem; }
-  .ms-mode-btn { padding: 0 10px; font-size: .95rem; }
-  .ms-mode-btn .ms-icon { display: none; }
   .ms-hint { font-size: .78rem; }
 }
 

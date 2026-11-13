@@ -69,19 +69,10 @@ function App() {
             <MinefieldView key={JSON.stringify(initialMinefield)}
                            initialMinefield={initialMinefield}
                            useRemainingNeighborMineCount={useNeighborRemainingMineCount}
+                           onUseRemainingChange={setUseNeighborRemainingMineCount}
                            onNewGame={() => newGame(difficultyOption)}
             />
         )}
-
-        <label className="ms-switch"
-               title="Each number shows how many of its neighboring mines you haven't flagged yet, so it counts down as you flag">
-          <input type="checkbox"
-                 checked={useNeighborRemainingMineCount}
-                 onChange={() => setUseNeighborRemainingMineCount(b => !b)}
-          />
-          <span className="ms-switch-track" aria-hidden="true"><span className="ms-switch-thumb"/></span>
-          Count numbers down as you flag
-        </label>
       </main>
   );
 }
